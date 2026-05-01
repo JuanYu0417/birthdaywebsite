@@ -268,6 +268,192 @@ function initRevealOnScroll(): void {
   targets.forEach((el) => observer.observe(el));
 }
 
+// ===== Music player =====
+interface Track {
+  title: string;
+  artist: string;
+  file: string;
+  cover: string;
+}
+
+const PLAYLIST: Track[] = [
+  { title: 'TAKEDOWN', artist: 'JEONGYEON, JIHYO, CHAEYOUNG', file: '01 - TAKEDOWN (JEONGYEON, JIHYO, CHAEYOUNG).mp3', cover: '⚔️' },
+  { title: "How It's Done", artist: 'HUNTR/X', file: '02 - How It’s Done.mp3', cover: '⚡' },
+  { title: 'Soda Pop', artist: 'Saja Boys', file: '03 - Soda Pop.mp3', cover: '🥤' },
+  { title: 'Golden', artist: 'HUNTR/X', file: '04 - Golden.mp3', cover: '🌟' },
+  { title: 'Strategy', artist: 'HUNTR/X', file: '05 - Strategy.mp3', cover: '🎯' },
+  { title: 'Takedown', artist: 'HUNTR/X', file: '06 - Takedown.mp3', cover: '💥' },
+  { title: 'Your Idol', artist: 'Saja Boys', file: '07 - Your Idol.mp3', cover: '👑' },
+  { title: 'Free', artist: 'Rumi & Jinu', file: '08 - Free.mp3', cover: '🕊️' },
+  { title: 'What It Sounds Like', artist: 'HUNTR/X', file: '09 - What It Sounds Like.mp3', cover: '🎶' },
+  { title: '사랑인가 봐 (Love, Maybe)', artist: 'Various', file: '10 - 사랑인가 봐 Love, Maybe.mp3', cover: '💖' },
+  { title: '오솔길 (Path)', artist: 'Various', file: '11 - 오솔길 Path.mp3', cover: '🌙' },
+  { title: 'Score Suite', artist: 'Original Soundtrack', file: '12 - Score Suite.mp3', cover: '🎼' },
+];
+
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function initMusicPlayer(): void {
+  const audio = document.getElementById('playerAudio') as HTMLAudioElement | null;
+  const list = document.getElementById('playlistList') as HTMLOListElement | null;
+  const playBtn = document.getElementById('playerPlay') as HTMLButtonElement | null;
+  const prevBtn = document.getElementById('playerPrev') as HTMLButtonElement | null;
+  const nextBtn = document.getElementById('playerNext') as HTMLButtonElement | null;
+  const shuffleBtn = document.getElementById('playerShuffle') as HTMLButtonElement | null;
+  const loopBtn = document.getElementById('playerLoop') as HTMLButtonElement | null;
+  const titleEl = document.getElementById('playerTitle');
+  const trackNumEl = document.getElementById('playerTrackNumber');
+  const coverEl = document.getElementById('playerCover');
+  const progressBar = document.getElementById('playerProgressBar');
+  const currentEl = document.getElementById('playerCurrent');
+  const durationEl = document.getElementById('playerDuration');
+  const progressTrack = progressBar?.parentElement as HTMLElement | null;
+
+  if (!audio || !list || !playBtn || !prevBtn || !nextBtn || !titleEl || !trackNumEl || !coverEl || !progressBar || !currentEl || !durationEl || !progressTrack) {
+    return;
+  }
+
+  let currentIndex = 0;
+  let shuffle = false;
+  let loop = true;
+
+  const buildList = (): void => {
+    list.innerHTML = '';
+    PLAYLIST.forEach((track, idx) => {
+      const li = document.createElement('li');
+      li.className = 'playlist-item';
+      li.dataset.index = String(idx);
+      li.innerHTML = `
+        <span class="playlist-num">${(idx + 1).toString().padStart(2, '0')}</span>
+        <span class="playlist-cover">${track.cover}</span>
+        <span class="playlist-info">
+          <span class="playlist-title">${track.title}</span>
+          <span class="playlist-artist">${track.artist}</span>
+        </span>
+        <span class="playlist-status" aria-hidden="true">▶</span>
+      `;
+      li.addEventListener('click', () => {
+        loadTrack(idx, true);
+      });
+      list.appendChild(li);
+    });
+  };
+
+  const updateActiveItem = (): void => {
+    const items = list.querySelectorAll<HTMLLIElement>('.playlist-item');
+    items.forEach((item, idx) => {
+      item.classList.toggle('active', idx === currentIndex);
+    });
+  };
+
+  const loadTrack = (index: number, autoplay: boolean): void => {
+    const track = PLAYLIST[index];
+    if (!track) return;
+    currentIndex = index;
+    audio.src = `/musics/${encodeURIComponent(track.file)}`;
+    titleEl.textContent = `${track.title} — ${track.artist}`;
+    trackNumEl.textContent = `Track ${(index + 1).toString().padStart(2, '0')} / ${PLAYLIST.length.toString().padStart(2, '0')}`;
+    coverEl.textContent = track.cover;
+    updateActiveItem();
+    if (autoplay) {
+      void audio.play().catch(() => {
+        playBtn.textContent = '▶';
+      });
+    }
+  };
+
+  const pickNext = (): number => {
+    if (shuffle && PLAYLIST.length > 1) {
+      let next = currentIndex;
+      while (next === currentIndex) {
+        next = Math.floor(Math.random() * PLAYLIST.length);
+      }
+      return next;
+    }
+    const next = currentIndex + 1;
+    if (next >= PLAYLIST.length) return loop ? 0 : currentIndex;
+    return next;
+  };
+
+  const pickPrev = (): number => {
+    if (audio.currentTime > 3) {
+      audio.currentTime = 0;
+      return currentIndex;
+    }
+    const prev = currentIndex - 1;
+    if (prev < 0) return loop ? PLAYLIST.length - 1 : 0;
+    return prev;
+  };
+
+  playBtn.addEventListener('click', () => {
+    if (audio.paused) {
+      void audio.play().catch(() => undefined);
+    } else {
+      audio.pause();
+    }
+  });
+
+  nextBtn.addEventListener('click', () => loadTrack(pickNext(), true));
+  prevBtn.addEventListener('click', () => {
+    const prev = pickPrev();
+    if (prev !== currentIndex) loadTrack(prev, true);
+  });
+
+  shuffleBtn?.addEventListener('click', () => {
+    shuffle = !shuffle;
+    shuffleBtn.classList.toggle('active', shuffle);
+    shuffleBtn.setAttribute('aria-pressed', String(shuffle));
+  });
+
+  loopBtn?.addEventListener('click', () => {
+    loop = !loop;
+    loopBtn.classList.toggle('active', loop);
+    loopBtn.setAttribute('aria-pressed', String(loop));
+  });
+  loopBtn?.classList.add('active');
+  loopBtn?.setAttribute('aria-pressed', 'true');
+
+  audio.addEventListener('play', () => {
+    playBtn.textContent = '⏸';
+    list.classList.add('is-playing');
+  });
+  audio.addEventListener('pause', () => {
+    playBtn.textContent = '▶';
+    list.classList.remove('is-playing');
+  });
+  audio.addEventListener('ended', () => {
+    const next = pickNext();
+    if (next === currentIndex && !loop) {
+      playBtn.textContent = '▶';
+      return;
+    }
+    loadTrack(next, true);
+  });
+  audio.addEventListener('loadedmetadata', () => {
+    durationEl.textContent = formatTime(audio.duration);
+  });
+  audio.addEventListener('timeupdate', () => {
+    currentEl.textContent = formatTime(audio.currentTime);
+    const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+    (progressBar as HTMLElement).style.width = `${pct}%`;
+  });
+
+  progressTrack.addEventListener('click', (event) => {
+    if (!audio.duration) return;
+    const rect = progressTrack.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+    audio.currentTime = ratio * audio.duration;
+  });
+
+  buildList();
+  loadTrack(0, false);
+}
+
 // ===== Bootstrap =====
 function init(): void {
   initCountdown();
@@ -276,6 +462,7 @@ function init(): void {
   initRsvpForm();
   initClickSparkles();
   initRevealOnScroll();
+  initMusicPlayer();
   // eslint-disable-next-line no-console
   console.log('%c⚡ HUNTR/X mission systems online ⚡', 'color: #ffd60a; font-weight: bold; font-size: 14px;');
 }
