@@ -355,7 +355,7 @@ function initMusicPlayer(): void {
     const track = PLAYLIST[index];
     if (!track) return;
     currentIndex = index;
-    audio.src = `/musics/${encodeURIComponent(track.file)}`;
+    audio.src = `${import.meta.env.BASE_URL}musics/${encodeURIComponent(track.file)}`;
     titleEl.textContent = `${track.title} — ${track.artist}`;
     trackNumEl.textContent = `Track ${(index + 1).toString().padStart(2, '0')} / ${PLAYLIST.length.toString().padStart(2, '0')}`;
     coverEl.textContent = track.cover;

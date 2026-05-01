@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? '/birthdaywebsite/' : '/',
   server: {
     port: 5173,
     open: true,
@@ -9,4 +10,4 @@ export default defineConfig({
       '/admin': 'http://localhost:3001',
     },
   },
-});
+}));
