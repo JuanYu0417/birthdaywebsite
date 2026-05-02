@@ -2,7 +2,15 @@ node_modules
 dist
 *.log
 
-# SQLite database files
+# Local SQLite database files (legacy Express server)
 server/*.db
 server/*.db-shm
 server/*.db-wal
+
+# Vercel local state
+.vercel
+
+# Environment variables
+.env
+.env.local
+.env.*.local
