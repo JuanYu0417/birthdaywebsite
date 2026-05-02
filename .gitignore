@@ -2,11 +2,6 @@ node_modules
 dist
 *.log
 
-# Local SQLite database files (legacy Express server)
-server/*.db
-server/*.db-shm
-server/*.db-wal
-
 # Vercel local state
 .vercel
 

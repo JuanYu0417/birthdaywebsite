@@ -4,12 +4,11 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vercel dev",
+    "dev": "npx vercel dev",
     "web": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "deploy": "vercel --prod",
-    "db:init": "turso db shell $TURSO_DATABASE_NAME < schema.sql"
+    "deploy": "npx vercel --prod"
   },
   "dependencies": {
     "@libsql/client": "^0.14.0"
