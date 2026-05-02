@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getDb } from '../lib/db.js';
+import { ensureSchema, getDb } from '../lib/db.js';
 
 interface RsvpRow {
   id: number;
@@ -29,6 +29,30 @@ function attendingPill(value: string): string {
   return `<span class="pill ${cls}">${label}</span>`;
 }
 
+function errorPage(message: string): string {
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>RSVP Admin \u00b7 Error</title>
+<style>
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #0a0420 0%, #2d0a5c 100%); color: white;
+    min-height: 100vh; padding: 2rem; display: flex; align-items: center; justify-content: center; }
+  .card { max-width: 640px; background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,107,157,0.4); border-radius: 16px; padding: 2rem; }
+  h1 { margin: 0 0 1rem; color: #ff6b9d; }
+  pre { background: rgba(0,0,0,0.4); padding: 1rem; border-radius: 8px;
+    white-space: pre-wrap; word-break: break-word; color: #ffd60a; }
+  .hint { color: #b8a8d8; margin-top: 1rem; font-size: 0.9rem; }
+  code { background: rgba(0,0,0,0.4); padding: 0.1rem 0.4rem; border-radius: 4px; color: #ffd60a; }
+</style></head><body>
+<div class="card">
+  <h1>\u26a0 Database error</h1>
+  <pre>${escapeHtml(message)}</pre>
+  <p class="hint">Check that <code>TURSO_DATABASE_URL</code> and <code>TURSO_AUTH_TOKEN</code> are set in
+  Vercel \u2192 Project \u2192 Settings \u2192 Environment Variables (for the deployed environment),
+  then redeploy.</p>
+</div></body></html>`;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
@@ -36,11 +60,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
-  const db = getDb();
-  const { rows } = await db.execute(
-    `SELECT * FROM rsvps ORDER BY datetime(submitted_at) DESC`,
-  );
-  const results = rows as unknown as RsvpRow[];
+  let results: RsvpRow[];
+  try {
+    await ensureSchema();
+    const db = getDb();
+    const { rows } = await db.execute(
+      `SELECT * FROM rsvps ORDER BY datetime(submitted_at) DESC`,
+    );
+    results = rows as unknown as RsvpRow[];
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[api/admin] error:', err);
+    res.setHeader('content-type', 'text/html; charset=utf-8');
+    res.status(500).send(errorPage(message));
+    return;
+  }
 
   const yes = results.filter((r) => r.attending.toLowerCase() === 'yes').length;
   const maybe = results.filter((r) => r.attending.toLowerCase() === 'maybe').length;
